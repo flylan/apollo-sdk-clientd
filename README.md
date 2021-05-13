@@ -52,6 +52,11 @@ php ./bin/apollo-clientd.php --config-server-url="http://apollo-configserver.dem
 php ./bin/apollo-clientd.php -h 或者 php apollo-clientd.php --help
 ```
 
+## 关于应用的namespace列表说明
+默认所有应用都把该应用下的namespace列表通过指定方式配置在--app-namespace-portal下（默认为application），
+apollo-clientd启动时会自动去读取namespace列表，开启配置监听，配置格式参考下图
+![Screenshot](https://raw.githubusercontent.com/fengzhibin/apollo-sdk-clientd/master/images/namespace_portal.png)
+
 ## 业务端读取配置
 业务上需要读取阿波罗配置时，引入apollo-sdk/clientd这个composer包即可，参考以下步骤
 ```bash
