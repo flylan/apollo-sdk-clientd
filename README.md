@@ -1,5 +1,8 @@
 Ctrip Apollo PHP Client
 =======================
+## 说明
+这个仓库基于apollo-sdk/config实现了常驻的阿波罗客户端，从指定阿波罗配置中心实时拉取应用的配置到本地，
+通过json格式化之后缓存在本地目录
 
 ## 特性
 - 支持apollo配置变更的实时获取
@@ -48,3 +51,37 @@ php ./bin/apollo-clientd.php --config-server-url="http://apollo-configserver.dem
 ```bash
 php ./bin/apollo-clientd.php -h 或者 php apollo-clientd.php --help
 ```
+
+## 业务端读取配置
+业务上需要读取阿波罗配置时，引入apollo-sdk/clientd这个composer包即可，参考以下步骤
+```bash
+composer require apollo-sdk/clientd
+```
+
+代码上引入composer
+```php
+require 'vendor/autoload.php';
+```
+
+例子：
+```php
+<?php
+require 'vendor/autoload.php';
+
+$key = 'hello';//namespace下的各业务key
+$appId = 'demo';//支持通过全局变量或者环境变量赋值，变量名为：APOLLO_SDK_APPID
+$namespaceName = 'test';//支持通过全局变量或者环境变量赋值，变量名为：APOLLO_SDK_NAMESPACE_NAME
+$saveConfigDir = '/data/apollo';//支持通过全局变量或者环境变量赋值，变量名为：APOLLO_SDK_SAVE_CONFIG_DIR
+
+//1.传统传参方式
+var_dump(\ApolloSdk\Helpers\get_config($key, '', $namespaceName, $appId, $saveConfigDir));
+
+//2.常量配置方式（对于单应用id场景比较适用，不需要每个调用都传递重复的应用id参数和保存配置目录参数）
+在框架入口处配置常量，例如laravel框架根目录public/index.php里面配置以下的值
+defined('APOLLO_SDK_APPID', $appId);
+defined('APOLLO_SDK_SAVE_CONFIG_DIR', $saveConfigDir);
+//defined('APOLLO_SDK_NAMESPACE_NAME', $namespaceName);
+
+//然后业务代码就可以不需要传递这些已经定义好的常量了
+var_dump(\ApolloSdk\Helpers\get_config($key, '', $namespaceName);
+
