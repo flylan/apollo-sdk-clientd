@@ -10,17 +10,18 @@ Ctrip Apollo PHP Client
 
 ## 安装（提供两种方式）
 第一种基于git仓库运行
-
+```bash
 git clone git@github.com:fengzhibin/apollo-configd.git
-
 cd apollo-configd
-
 composer install -vvvo
+php ./bin/apollo-clientd.php --help
+```
 
 第二种基于phar包运行
-
-wget "https://github.com/fengzhibin/apollo-sdk-clientd/releases/download/v1.0.1/apollo-clientd.phar"
-php apollo-clientd.phar
+```bash
+wget "https://github.com/fengzhibin/apollo-sdk-clientd/releases/download/1.0.0/apollo-clientd.phar"
+php apollo-clientd.phar --help
+```
 
 ## 简单例子
 ```bash
