@@ -8,11 +8,14 @@ error_reporting(E_ALL);
 
 $dir = __DIR__;             // 需要打包的目录
 $file = 'apollo-clientd.phar';      // 包的名称, 注意它不仅仅是一个文件名, 在stub中也会作为入口前缀
+if(file_exists($file)) {
+    unlink($file);
+}
 $phar = new Phar(__DIR__ . '/' . $file, FilesystemIterator::CURRENT_AS_FILEINFO | FilesystemIterator::KEY_AS_FILENAME, $file);
 //开始打包
 $phar->startBuffering();//缓冲对归档做出的修改
 $phar->buildFromDirectory(dirname($dir));//遍历指定的目录并把其中的文件加入到归档中
-//$phar->delete('build-phar.php');//把build.php本身摘除
+//$phar->delete('/bin/build-phar.php');//把build.php本身摘除
 //设置入口,定义文件存根（stub）
 $phar->setStub("<?php
 Phar::mapPhar('{$file}');
