@@ -8,15 +8,24 @@ Ctrip Apollo PHP Client
 - 支持apollo配置变更的实时获取
 - 支持单进程监听多个应用配置变更
 
-## 安装
+## 安装（提供两种方式）
+第一种基于git仓库运行
+
 git clone git@github.com:fengzhibin/apollo-configd.git
 
 cd apollo-configd
 
 composer install -vvvo
 
+第二种基于phar包运行
+
+wget "https://github.com/fengzhibin/apollo-sdk-clientd/releases/download/v1.0.1/apollo-clientd.phar"
+php apollo-clientd.phar
+
 ## 简单例子
 ```bash
+基于git仓库运行和phar包运行的参数是一模一样的
+
 # 监听单个应用，并把配置通过json格式保存在/data/apollo下
 php ./bin/apollo-clientd.php --config-server-url="http://apollo-configserver.demo.com" --appid="demo" --save-config-dir="/data/apollo"
 
