@@ -12,60 +12,84 @@ Ctrip Apollo PHP Client
 第一种基于git仓库运行
 ```bash
 git clone git@github.com:fengzhibin/apollo-configd.git
+
 cd apollo-configd
+
 composer install -vvvo
+
 php ./bin/apollo-clientd.php --help
 ```
 
 第二种基于phar包运行
 ```bash
 wget "https://github.com/fengzhibin/apollo-sdk-clientd/releases/download/1.0.0/apollo-clientd.phar"
+
 php apollo-clientd.phar --help
 ```
 
 ## 简单例子
 ```bash
-基于git仓库运行和phar包运行的参数是一模一样的
+php ./bin/apollo-clientd.php --server="http://apollo-configserver.demo.com" --conf-portal="demo/test/apollo-clientd"
 
-# 监听单个应用，并把配置通过json格式保存在/data/apollo下
-php ./bin/apollo-clientd.php --config-server-url="http://apollo-configserver.demo.com" --appid="demo" --save-config-dir="/data/apollo"
+或者
 
-# 监听多个应用
-php ./bin/apollo-clientd.php --config-server-url="http://apollo-configserver.demo.com" --appid="demo1,demo2,demo3" --save-config-dir="/data/apollo"
+php apollo-clientd.phar --server="http://apollo-configserver.demo.com" --conf-portal="demo/test/apollo-clientd"
 ```
 
 ## 参数说明
-必选参数
+cli启动参数
 
-|  参数   | 说明  | 默认值  |
-|  ----  | ----  | ----  |
-| --config-server-url  | Apollo配置服务的地址| 无 |
-| --save-config-dir  | 保存从阿波罗服务器读取到的配置文件的目录| 无 |
-| --appid   | 应用id | 无 |
+|参数|说明|默认值|
+|----|----|----|
+|--server|Apollo配置中心服务的地址| 无 |
+|--conf-portal| 读取apollo-clientd运行配置的入口| 无 |
+|-h                        | 显示帮助信息                  |无|
+|--help                    | 同-h                        |无|
+|--q                       | 开启静默模式，屏蔽运行时日志    |无|
+|--quiet                   | 同-q                        |无|
+|--secret                  | 访问密钥                     |无|
+|--cluster-name            | 集群名                      |default|
+|--skip-check-server | 是否跳过启动时检查Apollo配置中心是否合法的检查    |无|
+|--conf-portal-separator  | conf-portal参数的分隔符 |/|
 
-可选参数
+## 关于--conf-portal参数说明
+--conf-portal参数用于将一些额外的参数（例如应用id，namespace信息等）保存在阿波罗配置中心，
+这样就不必在apollo-clientd启动时写死了，这也减少了apollo-clientd启动参数个数， 
+程序会在启动的时候到这配置入口去读取配置
 
-| 参数                       | 说明                        |默认值|
-| ----                      | ----                        |----|
-| -h                        | 显示帮助信息                  |无|
-| --help                    | 同-h                        |无|
-| --q                       | 开启静默模式，屏蔽运行时日志    |无|
-| --quiet                   | 同-q                        |无|
-| --secret                  | 访问密钥                     |无|
-| --cluster-name            | 集群名                      |default|
-| --appid-separator         | 应用id分隔符                 |,|
-| --app-namespace-portal    | 应用namepsace列表配置入口     |application|
-| --check-config-server-url | 是否自动检查config-server-url的有效性     |1|
+这个参数格式为{appid}/{namespace}/{key}，以下图作为例子说明
 
-完整的参数说明可以通过-h或者--help查看
-```bash
-php ./bin/apollo-clientd.php -h 或者 php apollo-clientd.php --help
+![Screenshot](https://raw.githubusercontent.com/fengzhibin/apollo-sdk-clientd/master/images/extra.png)
+
+--conf-portal=apollo-sdk-clientd/hello_world/world
+
+## 额外参数配置（json格式）
+```json
+{
+  "app_namespace_list": {//应用的namespace配置
+    "demo1": [//应用id
+      "application",//namespace
+      "test1",//namespace
+      "test2",//namespace
+      "test3"//namespace
+    ],
+    "demo2": [],//不配置namespace列表，程序会走指定入口读取，参考下面的说明
+    "demo3": []
+  },
+  "save_config_dir": "/data/apollo",//从阿波罗配置中心读取的配置，缓存在这个目录下
+  "app_namespace_list_portal": "application"//应用下保存namespace列表的入口
+}
 ```
 
-## 关于应用的namespace列表说明
-默认所有应用都把该应用下的namespace列表通过指定方式配置在--app-namespace-portal下（默认为application），
-apollo-clientd启动时会自动去读取namespace列表，开启配置监听，配置格式参考下图
+如果不在app_namespace_list里面配置应用的namespace列表（例如应用demo2和demo3），
+程序启动的时候会尝试通过以app_namespace_list_portal参数为入口读取namespace列表，格式如下：
 ![Screenshot](https://raw.githubusercontent.com/fengzhibin/apollo-sdk-clientd/master/images/portal.png)
+
+程序会通过这个namespace读取当前应用下的namespace列表
+
+完整示意图如下（只需要把当前应用下的namespace都配置在入口即可）：
+
+![Screenshot](https://raw.githubusercontent.com/fengzhibin/apollo-sdk-clientd/master/images/portal_full.png)
 
 ## 业务端读取配置
 业务上需要读取阿波罗配置时，引入apollo-sdk/clientd这个composer包即可，参考以下步骤

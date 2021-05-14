@@ -15,38 +15,29 @@ if(!Helpers\is_cli_mode()) {
 }
 
 class App {
+    const VERSION = '1.0.0';//当前版本
+
     private $apolloSdkClient;
-    private $configServerUrl = '';
-    private $saveConfigDir = '';
-    private $clusterName = '';
-    private $secret = '';
-    private $appId = '';
-    private $appIdSeparator = ',';
-    private $appNamespacePortal = 'application';
     private $quiet = false;
+    private $saveConfigDir = '';
+    private $appNamespaceList = [];
+    private $appNamespaceListPortal = 'application';
 
     public function __construct() {
         //初始化基础参数
         $this->initBaseParams();
-        //初始化\ApolloSdk\Config\Client
-        $config = ['config_server_url' => $this->configServerUrl];
-        if(!empty($this->clusterName)) {//集群名称
-            $config['cluster_name'] = $this->clusterName;
-        }
-        if(!empty($this->secret)) {//密钥
-            $config['secret'] = $this->secret;
-        }
-        $this->apolloSdkClient = new Client($config);
+        //初始化额外参数
+        $this->initExtraParams();
     }
 
     /**
-     * 检查阿波罗服务器地址是否为合法的地址
+     * 检查阿波罗配置中心
      * @author fengzhibin
      * @date 2021-03-19
      */
-    private function checkConfigServerUrl() {
-        if(Helpers\is_legal_url($this->configServerUrl) === false) {
-            $this->outputErrorMsg('请传入合法的config-server-url链接');
+    private function checkServer($server) {
+        if(Helpers\is_legal_url($server) === false) {
+            $this->outputErrorMsg('阿波罗配置中心链接格式异常，不是合法的url');
         }
         $errorMsg = '';
         try {
@@ -55,10 +46,10 @@ class App {
                 'timeout' => 5,
                 'connect_timeout' => 5
             ]);
-            $response = $guzzleHttpClient->get($this->configServerUrl);
+            $response = $guzzleHttpClient->get($server);
             $statusCode = (int)$response->getStatusCode();
             if($statusCode !== 404) {
-                $errorMsg = "http状态码为{$statusCode}，配置中心根接口的状态码应该为404，请检查config-server-url链接";
+                $errorMsg = "http状态码为{$statusCode}，配置中心根接口的状态码应该为404，请检查阿波罗配置中心链接";
             } else {
                 $jsonDecodeBody = [];
                 $body = (string)$response->getBody();
@@ -73,7 +64,7 @@ class App {
             $errorMsg = $e->getMessage();
         }
         if(!empty($errorMsg)) {
-            $this->outputErrorMsg("通过curl请求{$this->configServerUrl}时产生错误，错误信息如下：".PHP_EOL.$errorMsg.PHP_EOL);
+            $this->outputErrorMsg("通过curl请求{$this->server}时产生错误，错误信息如下：".PHP_EOL.$errorMsg.PHP_EOL);
         }
     }
 
@@ -85,28 +76,24 @@ class App {
     private function outputHelpInfo() {
         $help = <<<EOF
 帮助信息:
-Usage: php apollo-clientd.php [options] -- [args...]
+Usage: php ./bin/apollo-clientd.php [options] -- [args...]
 
 必填参数：
---config-server-url        配置中心地址
---save-config-dir          保存配置文件的目录
---appid                    应用id，支持监听单个或者多个应用，格式例子：
-                           单个应用id：demo
-                           多个应用id：demo1,demo2,demo3
-
+--server                      配置中心地址，格式例子：http://config-server.apollo.com
+--conf-portal                 apollo-clientd的配置入口，格式为：应用id/namespace/key，格式例子：demo/test/apollo-clientd
+                              
 可选参数：
--h [--help]                显示帮助信息
--q [--quit]                是否开启静默模式屏蔽运行日志
---cluster-name             集群名，默认为default
---secret                   访问密钥
---appid-separator          应用id分隔符，默认为英文逗号，参考--appid多个应用id的格式
-                           例如--appid-separator=";"，这样就可以用;分隔应用id
---app-namespace-portal     应用下保存namepsace列表的配置入口，默认每个应用以application作为获取namepsace列表的入口
---check-config-server-url  是否跳过自动检查config-server-url环节，默认启动时会请求config-server-url检查其是否为阿波罗配置中心，
-                           传入--check-config-server-url=0可以跳过这个检查
-
-例子：
-php apollo-clientd.php --config-server-url="http://configserver.apollo.com" --appid="demo" --save-config-dir="/data/apollo"
+-h [--help]                   显示帮助信息
+-q [--quit]                   是否开启静默模式屏蔽运行日志
+-v [--version]                查看当前版本
+--cluster-name                集群名，默认为default
+--secret                      访问密钥
+--skip-check-server           是否跳过自动检查server环节，默认启动时会请求server检查其是否为阿波罗配置中心，
+                              启动时增加--skip-check-server参数可以跳过这个检查
+--conf-portal-separator       默认conf-portal参数的分隔符为/，通过这个参数可以改变conf-portal的分隔符，例如--conf-portal-separator=";"，
+                              这样--conf-portal就变成demo;test;clientd_config
+                                   
+更详细的使用说明参考：https://github.com/fengzhibin/apollo-sdk-clientd
 EOF;
 
         echo $help;
@@ -122,52 +109,92 @@ EOF;
      */
     private function initBaseParams() {
         $opt = getopt(
-            'h::q::',
+            'h::q::v::',
             [
-                'config-server-url:',
-                'save-config-dir:',
-                'cluster-name:',
-                'secret:',
-                'appid:',
-                'appid-separator:',
                 'help',
                 'quiet',
-                'check-config-server-url:'
+                'version',
+                'server:',
+                'cluster-name:',
+                'secret:',
+                'skip-check-server'
             ]
         );
-        if(isset($opt['help']) || isset($opt['h'])) {
+        //输出帮助信息
+        if(empty($opt) || isset($opt['help']) || isset($opt['h'])) {
             $this->outputHelpInfo();
         }
-        $checkConfigServerUrl = 1;
-        if(isset($opt['check-config-server-url'])) {
-            $checkConfigServerUrl = (int)$opt['check-config-server-url'];
+        //输出版本号
+        if(isset($opt['v']) || isset($opt['version'])) {
+            die('当前版本：'.self::VERSION.'，获取更多版本请访问：https://github.com/fengzhibin/apollo-sdk-clientd/releases'.PHP_EOL);
         }
-        if(empty($opt['config-server-url'])) {
-            $this->outputErrorMsg('必须传入--config-server-url参数');
-        }
-        $this->configServerUrl = $opt['config-server-url'];
-        if($checkConfigServerUrl === 1) {
-            $this->checkConfigServerUrl();
-        }
-        if(empty($opt['save-config-dir'])) {
-            $this->outputErrorMsg('必须传入--save-config-dir参数');
-        }
-        $this->saveConfigDir = $opt['save-config-dir'];
-        if(empty($opt['appid'])) {
-            $this->outputErrorMsg('必须传入--appid参数');
-        }
-        $this->appId = $opt['appid'];
-        if(!empty($opt['cluster-name'])) {
-            $this->clusterName = $opt['cluster-name'];
-        }
-        if(!empty($opt['secret'])) {
-            $this->secret = $opt['secret'];
-        }
-        if(!empty($opt['appid-separator'])) {
-            $this->appIdSeparator = $opt['appid-separator'];
-        }
+        //静默模式
         if(isset($opt['q']) || isset($opt['quiet'])) {
             $this->quiet = true;
+        }
+        //阿波罗配置中心地址
+        if(empty($opt['server'])) {
+            $this->outputErrorMsg('必须传入--server参数');
+        }
+        //检查配置中心地址
+        if(!isset($opt['skip-check-server'])) {
+            $this->checkServer($opt['server']);
+        }
+        //初始化\ApolloSdk\Config\Client配置
+        $config = ['config_server_url' => $opt['server']];
+        //集群名称
+        if(!empty($opt['cluster-name'])) {
+            $config['cluster_name'] = $opt['cluster-name'];
+        }
+        //访问密钥
+        if(!empty($opt['secret'])) {
+            $config['secret'] = $opt['secret'];
+        }
+        $this->apolloSdkClient = new Client($config);
+    }
+
+    /**
+     * 初始化额外参数
+     * @author fengzhibin
+     * @date 2021-03-19
+     */
+    private function initExtraParams() {
+        $opt = getopt(
+            '',
+            [
+                'conf-portal:',
+                'conf-portal-separator:'
+            ]
+        );
+        //客户端启动时读取运行配置的入口
+        if(empty($opt['conf-portal'])) {
+            $this->outputErrorMsg('必须传入--conf-portal参数');
+        }
+        $confPortalSeparator = empty($opt['conf-portal-separator'])?'/':$opt['conf-portal-separator'];
+        $confPortal = explode($confPortalSeparator, $opt['conf-portal']);
+        if(count($confPortal) !== 3) {
+            $this->outputErrorMsg("--conf-portal参数格式错误，正确的格式为： appid{$confPortalSeparator}namespace{$confPortalSeparator}key");
+        }
+        list($appId, $namespaceName, $key) = $confPortal;
+        $tmp = $this->apolloSdkClient->getConfig($appId, $namespaceName);
+        if(empty($tmp[$key])) {
+            $this->outputErrorMsg("应用：{$appId}，namespace：{$namespaceName}下配置为空");
+        }
+        if(!Helpers\is_json($tmp[$key])) {
+            $this->outputErrorMsg("apollo-clientd运行配置必须为json格式");
+        }
+        $config = json_decode($tmp[$key], true);
+        unset($tmp);
+        if(empty($config['app_namespace_list'])) {
+            $this->outputErrorMsg("apollo-clientd运行配置没有配置app_namespace_list参数");
+        }
+        if(empty($config['save_config_dir'])) {
+            $this->outputErrorMsg("apollo-clientd运行配置没有配置save_config_dir参数");
+        }
+        $this->appNamespaceList = $config['app_namespace_list'];
+        $this->saveConfigDir = $config['save_config_dir'];
+        if(!empty($config['app_namespace_list_portal'])) {
+            $this->appNamespaceListPortal = $config['app_namespace_list_portal'];
         }
     }
 
@@ -206,7 +233,7 @@ EOF;
      * @date 2021-03-19
      */
     public function getAllAppIdList() {
-        $result = explode($this->appIdSeparator, $this->appId);
+        $result = array_keys($this->appNamespaceList);
         $this->outputDebugMsg('初始化监听的appid列表', $result);
         return $result;
     }
@@ -218,26 +245,24 @@ EOF;
      * @date 2021-03-19
      */
     public function getAllAppNamespaceList() {
-        $result = [];
-        //获取所有应用id
-        $allAppIdList = $this->getAllAppIdList();
-        if(!empty($allAppIdList)) {
-            //构造批量获取配置的数据结构
-            $appNamespaceData = [];
-            foreach($allAppIdList as &$appId) {
-                $appNamespaceData[$appId][$this->appNamespacePortal] = '';
+        //获取没有配置namespace列表的应用
+        $appNamespaceData = [];
+        foreach($this->appNamespaceList as $appId => $namespaceList) {
+            if(empty($namespaceList)) {
+                $appNamespaceData[$appId][$this->appNamespaceListPortal] = '';
             }
-            unset($appId);
-            //通过namespace入口获取所有的namespace列表
+        }
+        //通过namespace入口获取所有的namespace列表
+        if(!empty($appNamespaceData)) {
             $namespaceListConfigData = $this->apolloSdkClient->multiGetConfig($appNamespaceData);
             if(!empty($namespaceListConfigData)) {
                 //组装成特定格式
                 foreach($namespaceListConfigData as $appId => &$value) {
-                    $result[$appId] = $this->formatPortalConfigData($value[$this->appNamespacePortal]);
+                    $this->appNamespaceList[$appId] = $this->formatPortalConfigData($value[$this->appNamespaceListPortal]);
                 }
             }
-            unset($appNamespaceData);
         }
+        $result = $this->appNamespaceList;
         $this->outputDebugMsg('初始化监听的namespace列表，格式为应用id => namespace列表', $result);
         foreach($result as $key => &$value) {
             if(empty($value)) {
@@ -257,15 +282,15 @@ EOF;
      * @author fengzhibin
      * @date 2021-03-19
      */
-    private function formatPortalConfigData($configData, $appNamespacePortal = null) {
-        if(is_null($appNamespacePortal)) {
-            $appNamespacePortal = $this->appNamespacePortal;
+    private function formatPortalConfigData($configData, $appNamespaceListPortal = null) {
+        if(is_null($appNamespaceListPortal)) {
+            $appNamespaceListPortal = $this->appNamespaceListPortal;
         }
         if(empty($configData)) {
             return [];
         }
         $res = array_keys(array_filter($configData));
-        array_unshift($res, $appNamespacePortal);
+        array_unshift($res, $appNamespaceListPortal);
         return array_unique($res);
     }
 
@@ -296,7 +321,7 @@ EOF;
             ) {
                 $this->outputDebugMsg("【".date('Y-m-d H:i:s')."】应用id：{$appId}的namespace：{$namespaceName}发生了配置变化");
                 //更新了入口namespace，需要同时更新映射数组
-                if($namespaceName === $this->appNamespacePortal) {
+                if($namespaceName === $this->appNamespaceListPortal) {
                     $newMapping = [];
                     $namespaceData = $this->formatPortalConfigData($newConfig);
                     if(!empty($namespaceData)) {
