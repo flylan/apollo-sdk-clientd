@@ -27,7 +27,7 @@ wget "https://github.com/fengzhibin/apollo-sdk-clientd/releases/download/1.0.0/a
 php apollo-clientd.phar --help
 ```
 
-## 简单例子
+## 启动（仅支持cli模式）
 ```bash
 php ./bin/apollo-clientd.php --server="http://apollo-configserver.demo.com" --conf-portal="demo/test/apollo-clientd"
 
