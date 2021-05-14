@@ -42,7 +42,7 @@ cli启动参数
 |参数|说明|默认值|
 |----|----|----|
 |--server|Apollo配置中心服务的地址| 无 |
-|--conf-portal| 读取apollo-clientd运行配置的入口| 无 |
+|--conf-portal| 读取额外参数配置的入口| 无 |
 |-h                        | 显示帮助信息                  |无|
 |--help                    | 同-h                        |无|
 |--q                       | 开启静默模式，屏蔽运行时日志    |无|
@@ -55,13 +55,11 @@ cli启动参数
 ## 关于--conf-portal参数说明
 --conf-portal参数用于将一些额外的参数（例如应用id，namespace信息等）保存在阿波罗配置中心，
 这样就不必在apollo-clientd启动时写死了，这也减少了apollo-clientd启动参数个数， 
-程序会在启动的时候到这配置入口去读取配置
-
-这个参数格式为{appid}/{namespace}/{key}，以下图作为例子说明
+程序会在启动的时候到这配置入口去读取配置，这个参数格式为appid/namespace/key，以下图作为例子说明
 
 ![Screenshot](https://raw.githubusercontent.com/fengzhibin/apollo-sdk-clientd/master/images/extra.png)
 
---conf-portal=apollo-sdk-clientd/hello_world/world
+上图的参数为--conf-portal=apollo-sdk-clientd/hello_world/world
 
 ## 额外参数配置（json格式）
 ```json
