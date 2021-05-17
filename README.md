@@ -66,9 +66,8 @@ cli启动参数
 {
   "app_namespace_list": {//待监听配置变化的应用及应用下namespace列表配置，必填参数
     "demo1": [//应用id
-      "application",//namespace
       "test1",//namespace
-      "",//namespace
+      "haha",//namespace
     ],
     "demo2": [],//空数组代表不配置namespace列表，程序会走指定入口读取，参考下面的说明
     "demo3": []
