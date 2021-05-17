@@ -64,14 +64,14 @@ cli启动参数
 ## 额外参数配置（json格式）
 ```json
 {
-  "app_namespace_list": {//应用的namespace配置，必填参数
+  "app_namespace_list": {//待监听配置变化的应用及应用下namespace列表配置，必填参数
     "demo1": [//应用id
       "application",//namespace
       "test1",//namespace
       "test2",//namespace
       "test3"//namespace
     ],
-    "demo2": [],//不配置namespace列表，程序会走指定入口读取，参考下面的说明
+    "demo2": [],//空数组代表不配置namespace列表，程序会走指定入口读取，参考下面的说明
     "demo3": []
   },
   "save_config_dir": "/data/apollo",//从阿波罗配置中心读取的配置，缓存在这个目录下，必填参数
